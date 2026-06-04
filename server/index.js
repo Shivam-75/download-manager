@@ -9,6 +9,7 @@ import cluster from "cluster";
 import os from "os";
 import downloadRoutes from "./src/routes/downloadRoutes.js";
 import youtubeRoutes from "./src/routes/youtubeRoutes.js";
+import { initYtDlp } from "./src/utils/ytDlpHelper.js";
 
 config();
 
@@ -56,7 +57,10 @@ app.get("/", (req, res) => {
   res.send("Welcome to Auto Generated Backend!");
 });
 
-Db().then(() => {
+Db().then(async () => {
+  // Automatically download and initialize the OS-specific yt-dlp binary if missing
+  await initYtDlp();
+
   app.listen(PORT, () =>
     console.log("🚀 Server running at http://localhost:" + PORT)
   );
