@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "Streamix - YouTube Downloader",
+  "version": "1.0.0",
+  "description": "Download YouTube videos directly from your browser with Streamix.",
+  "permissions": ["activeTab"],
+  "host_permissions": [
+    "http://localhost:5000/*",
+    "https://*.youtube.com/*",
+    "https://youtube.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.youtube.com/*",
+        "https://youtube.com/*"
+      ],
+      "js": ["content.js"],
+      "css": ["content.css"]
+    }
+  ]
+}
