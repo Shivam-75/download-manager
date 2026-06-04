@@ -9,10 +9,14 @@ import {
   getStorageStats,
   viewFileInExplorer,
   pauseDownload,
-  resumeDownload
+  resumeDownload,
+  streamMediaDirect
 } from "../controller/downloadController.js";
 
 const router = express.Router();
+
+// GET stream/download media directly to client device
+router.get("/stream", streamMediaDirect);
 
 // GET list of active system disks/drives
 router.get("/disks", getDisks);

@@ -45,8 +45,10 @@ export default function DownloadPage() {
     (r) => r.status === "downloading" || r.status === "queued" || r.status === "paused",
   );
 
-  const handleStartDownload = (e) => {
-    e.preventDefault();
+  const [downloadTarget, setDownloadTarget] = useState("device");
+
+  const handleDownloadClick = (target) => {
+    setDownloadTarget(target);
     if (!inputUrl) {
       triggerToast("Please provide a valid download URL.");
       return;
@@ -55,21 +57,29 @@ export default function DownloadPage() {
       setChoiceResolution("Original");
       setShowResolutionModal(true);
     } else {
-      confirmAndStartDownloadDirect();
+      confirmAndStartDownloadDirect(target);
     }
   };
 
-  const startDownloadJob = async (resQuality) => {
+  const startDownloadJob = async (resQuality, target) => {
     setIsSubmitting(true);
     try {
-      await triggerDownload(inputUrl, "", resQuality, mediaType);
-      triggerToast(
-        `Download queued successfully: ${mediaType.toUpperCase()} format`
-      );
-      setInputUrl("");
-      handleRefresh(); // Force reload list
+      if (target === "device") {
+        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "https://download-manager-gm8u.vercel.app/api";
+        const downloadUrl = `${apiBaseUrl}/downloads/stream?url=${encodeURIComponent(inputUrl)}&mediaType=${mediaType}&resolution=${resQuality}`;
+        window.open(downloadUrl, "_blank");
+        triggerToast("Direct download stream started on your device.");
+        setInputUrl("");
+      } else {
+        await triggerDownload(inputUrl, "", resQuality, mediaType);
+        triggerToast(
+          `Download queued successfully on server: ${mediaType.toUpperCase()} format`
+        );
+        setInputUrl("");
+        handleRefresh();
+      }
     } catch (err) {
-      triggerToast("Failed to queue download. Check server connectivity.");
+      triggerToast("Failed to initiate download. Check connectivity.");
     } finally {
       setIsSubmitting(false);
     }
@@ -77,11 +87,11 @@ export default function DownloadPage() {
 
   const confirmAndStartDownload = async () => {
     setShowResolutionModal(false);
-    await startDownloadJob(choiceResolution);
+    await startDownloadJob(choiceResolution, downloadTarget);
   };
 
-  const confirmAndStartDownloadDirect = async () => {
-    await startDownloadJob("Original");
+  const confirmAndStartDownloadDirect = async (target) => {
+    await startDownloadJob("Original", target || downloadTarget);
   };
 
   const handleCancelDownload = async (id) => {
@@ -183,22 +193,26 @@ export default function DownloadPage() {
                   className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-855 rounded-xl py-2.5 px-4 text-sm text-slate-805 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-600 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20 transition-all"
                 />
               </div>
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 text-white font-bold text-sm shadow-lg shadow-indigo-500/20 hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-50 cursor-pointer">
-                {isSubmitting ? (
-                  <>
-                    <RefreshCw className="h-4 w-4 animate-spin" />
-                    Initiating Stream...
-                  </>
-                ) : (
-                  <>
-                    <Plus className="h-4 w-4" />
-                    Start Download to Disk
-                  </>
-                )}
-              </button>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleDownloadClick("device")}
+                  disabled={isSubmitting}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-650 text-white font-bold text-sm shadow-lg shadow-emerald-500/20 hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-50 cursor-pointer"
+                >
+                  <Download className="h-4 w-4" />
+                  Download to Device
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDownloadClick("server")}
+                  disabled={isSubmitting}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 text-white font-bold text-sm shadow-lg shadow-indigo-500/20 hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-50 cursor-pointer"
+                >
+                  <Plus className="h-4 w-4" />
+                  Save on Server Disk
+                </button>
+              </div>
             </form>
           </div>
         </div>

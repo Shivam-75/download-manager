@@ -526,7 +526,10 @@ export const startDownload = async (req, res) => {
 
   try {
     // Always default to system Downloads folder
-    const resolvedDir = path.join(os.homedir(), "Downloads");
+    const isVercel = process.env.VERCEL || process.env.NOW_REGION;
+    const resolvedDir = isVercel
+      ? path.join(os.tmpdir(), "Downloads")
+      : path.join(os.homedir(), "Downloads");
 
     if (!fs.existsSync(resolvedDir)) {
       fs.mkdirSync(resolvedDir, { recursive: true });
@@ -897,5 +900,110 @@ export const resumeDownload = async (req, res) => {
     res.status(404).json({ message: "Active download job not found" });
   } catch (error) {
     res.status(500).json({ message: "Failed to resume download", error: error.message });
+  }
+};
+
+// GET stream/download media directly to client device (mobile/browser)
+export const streamMediaDirect = async (req, res) => {
+  const { url, mediaType = "video", resolution = "Original" } = req.query;
+
+  if (!url) {
+    return res.status(400).json({ message: "URL is required" });
+  }
+
+  const isYoutube = isYoutubeUrl(url);
+
+  try {
+    if (isYoutube) {
+      // Fetch YouTube video info
+      const info = await ytdl.getInfo(url);
+      const title = info.videoDetails.title || "Youtube_Video";
+      const cleanTitle = title.replace(/[\\/:*?"<>|]/g, "_");
+
+      if (mediaType === "audio") {
+        res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(cleanTitle)}.mp3"`);
+        res.setHeader("Content-Type", "audio/mpeg");
+        
+        // ytdl audioonly stream
+        ytdl(url, { filter: "audioonly", quality: "highestaudio" }).pipe(res);
+      } else {
+        res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(cleanTitle)}.mp4"`);
+        res.setHeader("Content-Type", "video/mp4");
+
+        // Choose appropriate resolution format
+        let format = null;
+        if (resolution === "1080p") {
+          format = ytdl.chooseFormat(info.formats, { quality: "137" }); // 1080p video id
+        } else if (resolution === "720p") {
+          format = ytdl.chooseFormat(info.formats, { quality: "136" }); // 720p video id
+        } else if (resolution === "480p") {
+          format = ytdl.chooseFormat(info.formats, { quality: "135" }); // 480p video id
+        }
+
+        // Fallback to highest format that has both audio and video
+        if (!format) {
+          format = ytdl.chooseFormat(info.formats, { filter: "audioandvideo", quality: "highest" }) 
+                   || ytdl.chooseFormat(info.formats, { filter: "audioandvideo" });
+        }
+
+        // If we are on Vercel, redirect to the direct URL to avoid 4.5MB / 10s serverless function timeout limits
+        const isVercel = process.env.VERCEL || process.env.NOW_REGION;
+        if (isVercel && format && format.url) {
+          return res.redirect(format.url);
+        }
+
+        if (format && format.url) {
+          // Stream from Google video server directly through our server if not on Vercel
+          const streamResponse = await axios({
+            method: "get",
+            url: format.url,
+            responseType: "stream"
+          });
+          streamResponse.data.pipe(res);
+        } else {
+          // Fallback to default ytdl stream
+          ytdl(url, { quality: "highest" }).pipe(res);
+        }
+      }
+    } else {
+      // Direct file url (e.g. image, direct video link)
+      let filename = "downloaded_file";
+      try {
+        filename = path.basename(new URL(url).pathname);
+      } catch (e) {}
+
+      // If we are on Vercel, redirect to the direct file URL to bypass Vercel limits completely
+      const isVercel = process.env.VERCEL || process.env.NOW_REGION;
+      if (isVercel) {
+        return res.redirect(url);
+      }
+
+      const response = await axios({
+        method: "get",
+        url: url,
+        responseType: "stream",
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        }
+      });
+
+      const contentType = response.headers["content-type"];
+      res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(filename)}"`);
+      if (contentType) {
+        res.setHeader("Content-Type", contentType);
+      }
+
+      response.data.pipe(res);
+    }
+  } catch (error) {
+    console.error("Direct streaming error:", error.message);
+    // If anything fails or throws an error, redirect user to the original url as fallback
+    try {
+      res.redirect(url);
+    } catch (e) {
+      if (!res.headersSent) {
+        res.status(500).json({ message: "Failed to stream media", error: error.message });
+      }
+    }
   }
 };

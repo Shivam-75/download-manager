@@ -26,13 +26,23 @@ export default function History() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
 
-  const handleViewFile = async (id) => {
-    try {
-      await openFileInExplorer(id);
-      triggerToast("Opening file location in explorer...");
-    } catch (err) {
-      const errMsg = err.response?.data?.message || "Failed to open file location.";
-      triggerToast(errMsg);
+  const handleViewFile = async (rec) => {
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "https://download-manager-gm8u.vercel.app/api";
+    const isVercel = window.location.hostname.includes("vercel.app");
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+    if (isVercel || isMobile) {
+      const downloadUrl = `${apiBaseUrl}/downloads/stream?url=${encodeURIComponent(rec.url)}&mediaType=${rec.type}&resolution=${rec.resolution || "Original"}`;
+      window.open(downloadUrl, "_blank");
+      triggerToast("Streaming file download to your device...");
+    } else {
+      try {
+        await openFileInExplorer(rec._id || rec.id);
+        triggerToast("Opening file location in explorer...");
+      } catch (err) {
+        const errMsg = err.response?.data?.message || "Failed to open file location.";
+        triggerToast(errMsg);
+      }
     }
   };
 
@@ -259,7 +269,7 @@ export default function History() {
                     <td className="py-3.5 px-6 text-right font-medium">
                       {rec.status === "completed" ? (
                         <button
-                          onClick={() => handleViewFile(rec._id || rec.id)}
+                          onClick={() => handleViewFile(rec)}
                           className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-850 hover:border-slate-300 dark:hover:border-slate-700 transition-all cursor-pointer"
                         >
                           View <ExternalLink className="h-3 w-3" />
