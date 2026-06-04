@@ -15,12 +15,30 @@ config();
 const PORT = process.env.PORT || 5000;
 
 
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "https://download-manager-two.vercel.app"
+];
+
 const app = express();
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Dynamically allow any origin (e.g. youtube.com, localhost) to avoid wildcard + credentials errors
-    callback(null, true);
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+
+    const isAllowed = allowedOrigins.some(allowed => origin === allowed || origin === allowed + '/') ||
+                      origin.startsWith("chrome-extension://") ||
+                      /https?:\/\/localhost:\d+/.test(origin) ||
+                      /https?:\/\/.*\.youtube\.com/.test(origin) ||
+                      origin === "https://youtube.com";
+
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
   },
   credentials: true
 }));
