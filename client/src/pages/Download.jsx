@@ -255,10 +255,10 @@ export default function DownloadPage() {
                   {activeDownloads.map((dl) => (
                     <div
                       key={dl.id}
-                      className="flex flex-col rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-955 shadow-sm hover:shadow-md transition-all duration-300 relative w-full max-w-[480px] mx-auto"
+                      className="flex flex-col rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-955 shadow-sm hover:shadow-md transition-all duration-300 relative w-full sm:w-[322px] sm:h-[203px] mx-auto"
                     >
                       {/* Top: Thumbnail Container */}
-                      <div className="relative aspect-video w-full rounded-t-xl overflow-hidden bg-slate-100 dark:bg-slate-900 flex-shrink-0">
+                      <div className="relative aspect-video sm:aspect-none sm:h-[110px] w-full rounded-t-xl overflow-hidden bg-slate-100 dark:bg-slate-900 flex-shrink-0">
                         <img
                           src={dl.thumbnail}
                           alt={dl.name}
@@ -286,7 +286,7 @@ export default function DownloadPage() {
                       </div>
 
                       {/* Bottom: Info and Progress */}
-                      <div className="p-3 space-y-1.5 flex flex-col justify-between flex-1">
+                      <div className="p-2.5 space-y-1 flex flex-col justify-between flex-1 min-h-0">
                         {/* Title & Action Menu */}
                         <div className="flex justify-between items-start gap-1.5">
                           <div className="min-w-0 flex-1">
