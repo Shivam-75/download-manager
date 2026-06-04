@@ -1,6 +1,7 @@
 import axios from "axios";
 import { exec } from "child_process";
 import path from "path";
+import fs from "fs";
 import { getYtDlpPath } from "../utils/ytDlpHelper.js";
 
 // Scraping search results directly from YouTube initial data
@@ -122,7 +123,11 @@ export const getVideoInfo = async (req, res) => {
   }
 
   const ytdlpPath = getYtDlpPath();
-  const command = ytdlpPath === "yt-dlp" ? `yt-dlp --dump-json "${url}"` : `"${ytdlpPath}" --dump-json "${url}"`;
+  const cookiesPath = path.resolve("./cookies.txt");
+  const cookiesArg = fs.existsSync(cookiesPath) ? `--cookies "${cookiesPath}"` : "";
+  const command = ytdlpPath === "yt-dlp"
+    ? `yt-dlp --dump-json --extractor-args "youtube:player-client=ios" ${cookiesArg} "${url}"`
+    : `"${ytdlpPath}" --dump-json --extractor-args "youtube:player-client=ios" ${cookiesArg} "${url}"`;
   exec(command, { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
     if (err) {
       console.error("Error fetching video info via yt-dlp:", err.message);

@@ -68,7 +68,11 @@ const getYoutubeVideoId = (urlStr) => {
 const getYtDlpInfo = (urlStr) => {
   return new Promise((resolve, reject) => {
     const ytdlpPath = getYtDlpPath();
-    const command = ytdlpPath === "yt-dlp" ? `yt-dlp --dump-json "${urlStr}"` : `"${ytdlpPath}" --dump-json "${urlStr}"`;
+    const cookiesPath = path.resolve("./cookies.txt");
+    const cookiesArg = fs.existsSync(cookiesPath) ? `--cookies "${cookiesPath}"` : "";
+    const command = ytdlpPath === "yt-dlp"
+      ? `yt-dlp --dump-json --extractor-args "youtube:player-client=ios" ${cookiesArg} "${urlStr}"`
+      : `"${ytdlpPath}" --dump-json --extractor-args "youtube:player-client=ios" ${cookiesArg} "${urlStr}"`;
     exec(command, { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
       if (err) {
         return reject(err);
@@ -357,6 +361,12 @@ const runDownloadJob = async (job) => {
       // Speed boost and playlist safety
       args.push("--concurrent-fragments", "8");
       args.push("--no-playlist");
+      args.push("--extractor-args", "youtube:player-client=ios");
+
+      const cookiesPath = path.resolve("./cookies.txt");
+      if (fs.existsSync(cookiesPath)) {
+        args.push("--cookies", cookiesPath);
+      }
 
       args.push("-o", fullFilePath);
       args.push(url);
