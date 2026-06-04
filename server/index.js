@@ -31,7 +31,10 @@ app.use(cors({
 
     const isAllowed = allowedOrigins.some(allowed => origin === allowed || origin === allowed + '/') ||
                       origin.startsWith("chrome-extension://") ||
-                      /https?:\/\/localhost:\d+/.test(origin) ||
+                      origin.startsWith("file://") ||
+                      origin.startsWith("capacitor://") ||
+                      origin.startsWith("ionic://") ||
+                      /^https?:\/\/localhost(:\d+)?\/?$/.test(origin) ||
                       /https?:\/\/.*\.youtube\.com/.test(origin) ||
                       origin === "https://youtube.com";
 
