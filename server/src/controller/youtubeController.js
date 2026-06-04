@@ -1,6 +1,7 @@
 import axios from "axios";
 import { exec } from "child_process";
 import path from "path";
+import { getYtDlpPath } from "../utils/ytDlpHelper.js";
 
 // Scraping search results directly from YouTube initial data
 const runYoutubeSearch = async (query) => {
@@ -120,8 +121,9 @@ export const getVideoInfo = async (req, res) => {
     return res.status(400).json({ message: "URL parameter (url) is required" });
   }
 
-  const ytdlpPath = path.resolve("./bin/yt-dlp.exe");
-  exec(`"${ytdlpPath}" --dump-json "${url}"`, { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
+  const ytdlpPath = getYtDlpPath();
+  const command = ytdlpPath === "yt-dlp" ? `yt-dlp --dump-json "${url}"` : `"${ytdlpPath}" --dump-json "${url}"`;
+  exec(command, { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
     if (err) {
       console.error("Error fetching video info via yt-dlp:", err.message);
       return res.status(500).json({ message: "Failed to fetch video info", error: err.message });

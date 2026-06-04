@@ -255,10 +255,10 @@ export default function DownloadPage() {
                   {activeDownloads.map((dl) => (
                     <div
                       key={dl.id}
-                      className="flex flex-col rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-955 shadow-sm hover:shadow-md transition-all duration-300 relative w-full sm:w-[322px] sm:h-[203px] mx-auto"
+                      className="flex flex-col rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-955 shadow-sm hover:shadow-md transition-all duration-300 relative w-full sm:w-[322px] sm:h-[203px] mx-auto overflow-hidden"
                     >
                       {/* Top: Thumbnail Container */}
-                      <div className="relative aspect-video sm:aspect-none sm:h-[110px] w-full rounded-t-xl overflow-hidden bg-slate-100 dark:bg-slate-900 flex-shrink-0">
+                      <div className="relative aspect-video sm:aspect-none sm:h-[95px] w-full rounded-t-xl overflow-hidden bg-slate-100 dark:bg-slate-900 flex-shrink-0">
                         <img
                           src={dl.thumbnail}
                           alt={dl.name}
@@ -286,11 +286,11 @@ export default function DownloadPage() {
                       </div>
 
                       {/* Bottom: Info and Progress */}
-                      <div className="p-2.5 space-y-1 flex flex-col justify-between flex-1 min-h-0">
+                      <div className="p-2.5 flex flex-col justify-between sm:h-[108px] flex-grow min-h-0 bg-white dark:bg-slate-955 rounded-b-xl">
                         {/* Title & Action Menu */}
-                        <div className="flex justify-between items-start gap-1.5">
+                        <div className="flex justify-between items-start gap-1 flex-shrink-0">
                           <div className="min-w-0 flex-1">
-                            <h3 className="text-xs font-bold text-slate-855 dark:text-slate-255 leading-snug line-clamp-2 pr-1" title={dl.name}>
+                            <h3 className="text-[11px] font-bold text-slate-855 dark:text-slate-255 leading-tight line-clamp-2 pr-1" title={dl.name}>
                               {dl.name}
                             </h3>
                           </div>
@@ -357,13 +357,13 @@ export default function DownloadPage() {
                           href={dl.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-[10px] text-indigo-500 hover:text-indigo-650 dark:text-indigo-400 dark:hover:text-indigo-300 truncate block font-medium hover:underline pr-2"
+                          className="text-[10px] text-indigo-500 hover:text-indigo-650 dark:text-indigo-400 dark:hover:text-indigo-300 truncate block font-medium hover:underline pr-2 flex-shrink-0"
                         >
                           {dl.url}
                         </a>
 
                         {/* Footer row: Date on left, Progress stats in red on right */}
-                        <div className="flex justify-between items-center text-[10px] font-medium pt-1 border-t border-slate-100 dark:border-slate-900/60 mt-0.5">
+                        <div className="flex justify-between items-center text-[10px] font-medium pt-1 border-t border-slate-100 dark:border-slate-900/60 mt-0.5 flex-shrink-0">
                           <span className="text-slate-550 dark:text-slate-500">
                             {dl.timestamp ? new Date(dl.timestamp).toLocaleDateString() : new Date().toLocaleDateString()}
                           </span>

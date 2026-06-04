@@ -4,6 +4,20 @@ import os from "os";
 import axios from "axios";
 import { execSync, exec, spawn } from "child_process";
 import ffmpegPath from "ffmpeg-static";
+import { getYtDlpPath } from "../utils/ytDlpHelper.js";
+
+// Helper to check if yt-dlp is available (either locally or globally)
+const isYtDlpAvailable = (resolvedPath) => {
+  if (resolvedPath !== "yt-dlp") {
+    return fs.existsSync(resolvedPath);
+  }
+  try {
+    execSync("yt-dlp --version", { stdio: "ignore" });
+    return true;
+  } catch (e) {
+    return false;
+  }
+};
 import ytdl from "@distube/ytdl-core";
 import Download from "../models/Download.js";
 
@@ -53,8 +67,9 @@ const getYoutubeVideoId = (urlStr) => {
 // Helper to get video info using local yt-dlp
 const getYtDlpInfo = (urlStr) => {
   return new Promise((resolve, reject) => {
-    const ytdlpPath = path.resolve("./bin/yt-dlp.exe");
-    exec(`"${ytdlpPath}" --dump-json "${urlStr}"`, { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
+    const ytdlpPath = getYtDlpPath();
+    const command = ytdlpPath === "yt-dlp" ? `yt-dlp --dump-json "${urlStr}"` : `"${ytdlpPath}" --dump-json "${urlStr}"`;
+    exec(command, { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
       if (err) {
         return reject(err);
       }
@@ -163,8 +178,8 @@ const runDownloadJob = async (job) => {
   let writer = null;
 
   if (isYoutube) {
-    const ytdlpPath = path.resolve("./bin/yt-dlp.exe");
-    if (!fs.existsSync(ytdlpPath)) {
+    const ytdlpPath = getYtDlpPath();
+    if (!isYtDlpAvailable(ytdlpPath)) {
       // Pure JS fallback via @distube/ytdl-core (works on Vercel, Render, local, everywhere)
       return new Promise((resolve) => {
         try {
