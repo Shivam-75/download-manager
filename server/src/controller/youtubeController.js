@@ -1,4 +1,6 @@
 import axios from "axios";
+import { exec } from "child_process";
+import path from "path";
 
 // Scraping search results directly from YouTube initial data
 const runYoutubeSearch = async (query) => {
@@ -44,16 +46,16 @@ const runYoutubeSearch = async (query) => {
     const id = video.videoId;
     const title = video.title?.runs?.[0]?.text || 'YouTube Video';
     const duration = video.lengthText?.simpleText || 'N/A';
-    
+
     let thumbnail = `https://img.youtube.com/vi/${id}/hqdefault.jpg`;
     if (video.thumbnail?.thumbnails?.length > 0) {
       thumbnail = video.thumbnail.thumbnails[video.thumbnail.thumbnails.length - 1].url;
     }
-    
+
     const uploader = video.ownerText?.runs?.[0]?.text || 'Unknown Channel';
     const uploader_url_path = video.ownerText?.runs?.[0]?.navigationEndpoint?.browseEndpoint?.canonicalBaseUrl || '';
     const uploader_url = uploader_url_path ? `https://www.youtube.com${uploader_url_path}` : '';
-    
+
     const viewsText = video.viewCountText?.simpleText || video.viewCountText?.runs?.[0]?.text || '';
     let viewCount = 0;
     if (viewsText) {
@@ -62,9 +64,9 @@ const runYoutubeSearch = async (query) => {
         viewCount = parseInt(match[0], 10);
       }
     }
-    
+
     const uploadedAt = video.publishedTimeText?.simpleText || 'Recently';
-    
+
     return {
       id,
       url: `https://www.youtube.com/watch?v=${id}`,
@@ -109,4 +111,69 @@ export const searchVideos = async (req, res) => {
     console.error("Error searching YouTube videos:", error.message);
     res.status(500).json({ message: "Failed to search YouTube videos", error: error.message });
   }
+};
+
+// GET formats, resolutions, and estimated file sizes for a YouTube video
+export const getVideoInfo = async (req, res) => {
+  const { url } = req.query;
+  if (!url) {
+    return res.status(400).json({ message: "URL parameter (url) is required" });
+  }
+
+  const ytdlpPath = path.resolve("./bin/yt-dlp.exe");
+  exec(`"${ytdlpPath}" --dump-json "${url}"`, { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
+    if (err) {
+      console.error("Error fetching video info via yt-dlp:", err.message);
+      return res.status(500).json({ message: "Failed to fetch video info", error: err.message });
+    }
+    try {
+      const info = JSON.parse(stdout);
+      const formats = info.formats || [];
+      
+      // Calculate sizes
+      const audioFormats = formats.filter(f => f.vcodec === "none" && f.acodec !== "none");
+      audioFormats.sort((a, b) => (b.filesize || b.filesize_approx || 0) - (a.filesize || a.filesize_approx || 0));
+      const bestAudioSize = audioFormats[0] ? (audioFormats[0].filesize || audioFormats[0].filesize_approx || 0) : 0;
+      
+      const getResSize = (height) => {
+        const resFormats = formats.filter(f => f.vcodec !== "none" && f.height === height);
+        if (resFormats.length === 0) return 0;
+        resFormats.sort((a, b) => (b.filesize || b.filesize_approx || 0) - (a.filesize || a.filesize_approx || 0));
+        const bestResSize = resFormats[0].filesize || resFormats[0].filesize_approx || 0;
+        return bestResSize + bestAudioSize;
+      };
+
+      const allVideoFormats = formats.filter(f => f.vcodec !== "none");
+      allVideoFormats.sort((a, b) => (b.filesize || b.filesize_approx || 0) - (a.filesize || a.filesize_approx || 0));
+      const bestVideoSize = allVideoFormats[0] ? (allVideoFormats[0].filesize || allVideoFormats[0].filesize_approx || 0) : 0;
+      const originalSize = bestVideoSize + bestAudioSize;
+
+      const formatBytes = (bytes) => {
+        if (!bytes || bytes === 0) return null;
+        const k = 1024;
+        const sizes = ["B", "KB", "MB", "GB"];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+      };
+
+      const sizes = {
+        "1080p": formatBytes(getResSize(1080)),
+        "720p": formatBytes(getResSize(720)),
+        "480p": formatBytes(getResSize(480)),
+        "360p": formatBytes(getResSize(360)),
+        "Original": formatBytes(originalSize),
+        "audio": formatBytes(bestAudioSize)
+      };
+
+      res.status(200).json({
+        title: info.title,
+        duration: info.duration,
+        thumbnail: info.thumbnail,
+        sizes
+      });
+    } catch (e) {
+      console.error("Failed to parse yt-dlp json output:", e.message);
+      res.status(500).json({ message: "Failed to parse video info", error: e.message });
+    }
+  });
 };

@@ -15,19 +15,40 @@ import {
   Copy,
   Trash2,
   ArrowUpDown,
-  RefreshCw
+  RefreshCw,
+  MoreVertical,
 } from "lucide-react";
-import { removeDownload, triggerDownload, openFileInExplorer } from "../api/apies";
+import {
+  removeDownload,
+  triggerDownload,
+  openFileInExplorer,
+} from "../api/apies";
 
 export default function History() {
-  const { records, setRecords, downloadPath, triggerToast, isLoading } = useOutletContext();
+  const { records, setRecords, downloadPath, triggerToast, isLoading } =
+    useOutletContext();
   const [sortField, setSortField] = useState("timestamp");
   const [sortAsc, setSortAsc] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [activeMenuId, setActiveMenuId] = useState(null);
   const itemsPerPage = 6;
 
+  const isMobile = React.useMemo(
+    () => /iPhone|iPad|iPod|Android/i.test(navigator.userAgent),
+    [],
+  );
+  const isLocalDesktop = React.useMemo(() => {
+    return (
+      !window.location.hostname.includes("vercel.app") &&
+      !isMobile &&
+      !window.Capacitor
+    );
+  }, [isMobile]);
+
   const handleViewFile = async (rec) => {
-    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "https://download-manager-gm8u.vercel.app/api";
+    const apiBaseUrl =
+      import.meta.env.VITE_API_BASE_URL ||
+      "https://download-manager-gm8u.vercel.app/api";
     const isVercel = window.location.hostname.includes("vercel.app");
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
@@ -40,7 +61,8 @@ export default function History() {
         await openFileInExplorer(rec._id || rec.id);
         triggerToast("Opening file location in explorer...");
       } catch (err) {
-        const errMsg = err.response?.data?.message || "Failed to open file location.";
+        const errMsg =
+          err.response?.data?.message || "Failed to open file location.";
         triggerToast(errMsg);
       }
     }
@@ -48,7 +70,9 @@ export default function History() {
 
   // Show only completed or failed records in History page (active ones stay on Dashboard queue)
   const historyRecords = useMemo(() => {
-    return records.filter((r) => r.status === "completed" || r.status === "failed");
+    return records.filter(
+      (r) => r.status === "completed" || r.status === "failed",
+    );
   }, [records]);
 
   const handleCopyUrl = (url) => {
@@ -57,7 +81,11 @@ export default function History() {
   };
 
   const handleDeleteRecord = async (id) => {
-    if (confirm("Are you sure you want to remove this download log from history? This also deletes the physical file from the server disk.")) {
+    if (
+      confirm(
+        "Are you sure you want to remove this download log from history? This also deletes the physical file from the server disk.",
+      )
+    ) {
       try {
         await removeDownload(id);
         setRecords((prev) => prev.filter((r) => r.id !== id));
@@ -119,7 +147,7 @@ export default function History() {
       day: "2-digit",
       hour: "2-digit",
       minute: "2-digit",
-      hour12: false
+      hour12: false,
     });
   };
 
@@ -137,154 +165,169 @@ export default function History() {
         </div>
       </div>
 
-      {/* Main Table Grid */}
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-800/80 bg-white/60 dark:bg-slate-900/10 backdrop-blur-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-800 text-xs font-bold uppercase tracking-wider text-slate-550 dark:text-slate-500 bg-slate-100/50 dark:bg-slate-900/20 select-none">
-                <th className="py-4.5 px-6 font-semibold">
-                  <button
-                    onClick={() => handleSort("name")}
-                    className="flex items-center gap-1 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
-                  >
-                    File Name <ArrowUpDown className="h-3 w-3" />
-                  </button>
-                </th>
-                <th className="py-4.5 px-6 font-semibold">Media Type</th>
-                <th className="py-4.5 px-6 font-semibold">Format</th>
-                <th className="py-4.5 px-6 font-semibold">
-                  <button
-                    onClick={() => handleSort("sizeBytes")}
-                    className="flex items-center gap-1 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
-                  >
-                    Size <ArrowUpDown className="h-3 w-3" />
-                  </button>
-                </th>
-                <th className="py-4.5 px-6 font-semibold">Speed</th>
-                <th className="py-4.5 px-6 font-semibold">
-                  <button
-                    onClick={() => handleSort("timestamp")}
-                    className="flex items-center gap-1 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
-                  >
-                    Date Downloaded <ArrowUpDown className="h-3 w-3" />
-                  </button>
-                </th>
-                <th className="py-4.5 px-6 font-semibold">Status</th>
-                <th className="py-4.5 px-6 font-semibold text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200/60 dark:divide-slate-800/40 text-sm">
-              {isLoading ? (
-                <tr>
-                  <td colSpan="8" className="py-12 text-center text-slate-500 font-medium">
-                    <div className="flex items-center justify-center gap-2">
-                      <RefreshCw className="h-5 w-5 animate-spin text-indigo-400" />
-                      <span>Loading download history...</span>
-                    </div>
-                  </td>
-                </tr>
-              ) : historyRecords.length === 0 ? (
-                <tr>
-                  <td colSpan="8" className="py-12 text-center text-slate-500 font-medium">
-                    No files found in download history.
-                  </td>
-                </tr>
-              ) : (
-                paginatedRecords.map((rec) => (
-                  <tr
-                    key={rec._id || rec.id}
-                    className="group hover:bg-slate-100/40 dark:hover:bg-slate-900/20 transition-colors duration-150"
-                  >
-                    {/* File name with Thumbnail preview */}
-                    <td className="py-3.5 px-6 font-semibold text-slate-805 dark:text-slate-200">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-14 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-950 flex-shrink-0 relative">
-                          {rec.thumbnail ? (
-                            <img
-                              src={rec.thumbnail}
-                              alt={rec.name}
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            <div className="h-full w-full bg-slate-200 dark:bg-slate-900 flex items-center justify-center">
-                              {rec.type === "video" ? <VideoIcon className="h-4 w-4" /> : <ImageIcon className="h-4 w-4" />}
-                            </div>
-                          )}
-                          {rec.type === "video" && rec.status === "completed" && (
-                            <div className="absolute inset-0 bg-slate-950/20 flex items-center justify-center">
-                              <Play className="h-3.5 w-3.5 text-white/90 fill-white/80" />
-                            </div>
-                          )}
-                        </div>
-                        <span className="truncate max-w-[220px] font-semibold text-slate-800 dark:text-slate-200 group-hover:text-indigo-650 dark:group-hover:text-indigo-400 transition-colors">
-                          {rec.name}
-                        </span>
-                      </div>
-                    </td>
-
-                    {/* Media Type Badge */}
-                    <td className="py-3.5 px-6">
-                      <span className="inline-flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 capitalize font-medium">
-                        {rec.type === "video" ? (
-                          <VideoIcon className="h-3.5 w-3.5 text-purple-650 dark:text-purple-400" />
-                        ) : (
-                          <ImageIcon className="h-3.5 w-3.5 text-cyan-600 dark:text-cyan-400" />
-                        )}
-                        {rec.type}
-                      </span>
-                    </td>
-
-                    {/* Format */}
-                    <td className="py-3.5 px-6 font-mono text-xs font-bold text-slate-500 dark:text-slate-400">{rec.format}</td>
-
-                    {/* Size */}
-                    <td className="py-3.5 px-6 text-slate-700 dark:text-slate-350">{rec.size}</td>
-
-                    {/* Speed */}
-                    <td className="py-3.5 px-6 font-mono text-xs text-slate-500 dark:text-slate-400">{rec.speed}</td>
-
-                    {/* Date */}
-                    <td className="py-3.5 px-6 text-slate-600 dark:text-slate-400">{formatDate(rec.timestamp)}</td>
-
-                    {/* Status */}
-                    <td className="py-3.5 px-6">
-                      <span
-                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold capitalize border ${
-                          rec.status === "completed"
-                            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/10"
-                            : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/10"
-                        }`}
-                      >
-                        {rec.status === "completed" ? (
-                          <CheckCircle2 className="h-3 w-3" />
-                        ) : (
-                          <AlertCircle className="h-3 w-3" />
-                        )}
-                        {rec.status}
-                      </span>
-                    </td>
-
-                    {/* View File clicker */}
-                    <td className="py-3.5 px-6 text-right font-medium">
-                      {rec.status === "completed" ? (
-                        <button
-                          onClick={() => handleViewFile(rec)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-850 hover:border-slate-300 dark:hover:border-slate-700 transition-all cursor-pointer"
-                        >
-                          View <ExternalLink className="h-3 w-3" />
-                        </button>
+      {/* Main Cards Grid */}
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {isLoading ? (
+            <div className="col-span-full py-12 text-center text-slate-500 font-medium">
+              <div className="flex items-center justify-center gap-2">
+                <RefreshCw className="h-5 w-5 animate-spin text-indigo-400" />
+                <span>Loading download history...</span>
+              </div>
+            </div>
+          ) : historyRecords.length === 0 ? (
+            <div className="col-span-full py-12 text-center text-slate-500 font-medium">
+              No files found in download history.
+            </div>
+          ) : (
+            paginatedRecords.map((rec) => (
+              <div
+                key={rec._id || rec.id}
+                className="flex flex-col rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-955 shadow-sm hover:shadow-md transition-all duration-300 relative w-full max-w-[480px] mx-auto">
+                {/* Top: Thumbnail Container */}
+                <div className="relative aspect-video w-full rounded-t-xl overflow-hidden bg-slate-100 dark:bg-slate-900 flex-shrink-0">
+                  {rec.thumbnail ? (
+                    <img
+                      src={rec.thumbnail}
+                      alt={rec.name}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="h-full w-full bg-slate-200 dark:bg-slate-900 flex items-center justify-center">
+                      {rec.type === "video" ? (
+                        <VideoIcon className="h-5 w-5 text-slate-400" />
                       ) : (
-                        <span className="text-xs text-rose-500 dark:text-rose-455 font-semibold italic">
-                          File Unavailable
-                        </span>
+                        <ImageIcon className="h-5 w-5 text-slate-400" />
                       )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                    </div>
+                  )}
+                  {/* Top-Right Status Badge */}
+                  <span
+                    className={`absolute top-2 right-2 backdrop-blur-sm px-1.5 py-0.5 rounded text-[8px] font-bold text-white tracking-wide uppercase ${
+                      rec.status === "completed"
+                        ? "bg-emerald-600/85 border border-emerald-500/20"
+                        : "bg-rose-600/85 border border-rose-500/20"
+                    }`}>
+                    {rec.status}
+                  </span>
+                  {/* Bottom-Left Size Badge */}
+                  <span className="absolute bottom-2 left-2 bg-black px-1.5 py-0.5 rounded text-[9px] font-extrabold text-white tracking-wide">
+                    {rec.size || "0 B"}
+                  </span>
+                  {/* Progress Line for Completed (Full Red) */}
+                  {rec.status === "completed" && (
+                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-red-650" />
+                  )}
+                </div>
+
+                {/* Bottom: Info and Actions */}
+                <div className="p-3 space-y-1.5 flex flex-col justify-between flex-1">
+                  {/* Title & Three-Dots Menu */}
+                  <div className="flex justify-between items-start gap-1.5">
+                    <div className="min-w-0 flex-1">
+                      <h3
+                        className="text-xs font-bold text-slate-855 dark:text-slate-255 leading-snug line-clamp-2 pr-1"
+                        title={rec.name}>
+                        {rec.name}
+                      </h3>
+                    </div>
+
+                    {/* Action Dropdown Menu */}
+                    <div className="relative flex-shrink-0">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setActiveMenuId(
+                            activeMenuId === (rec._id || rec.id)
+                              ? null
+                              : rec._id || rec.id,
+                          )
+                        }
+                        className="p-0.5 rounded hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors cursor-pointer">
+                        <MoreVertical className="h-4 w-4" />
+                      </button>
+
+                      {activeMenuId === (rec._id || rec.id) && (
+                        <>
+                          <div
+                            className="fixed inset-0 z-20 cursor-default"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveMenuId(null);
+                            }}
+                          />
+                          <div className="absolute right-0 top-full mt-1 z-30 w-44 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl p-1 flex flex-col gap-0.5 animate-fadeIn">
+                            {rec.status === "completed" && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  handleViewFile(rec);
+                                  setActiveMenuId(null);
+                                }}
+                                className="flex items-center gap-1.5 px-2 py-1.5 rounded text-[11px] font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors w-full text-left cursor-pointer">
+                                <Play className="h-3 w-3 text-slate-500 dark:text-slate-400" />
+                                View / Play file
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleCopyUrl(rec.url);
+                                setActiveMenuId(null);
+                              }}
+                              className="flex items-center gap-1.5 px-2 py-1.5 rounded text-[11px] font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors w-full text-left cursor-pointer">
+                              <Copy className="h-3 w-3 text-slate-500 dark:text-slate-400" />
+                              Copy download link
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleRedownload(rec.url, rec.name);
+                                setActiveMenuId(null);
+                              }}
+                              className="flex items-center gap-1.5 px-2 py-1.5 rounded text-[11px] font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors w-full text-left cursor-pointer">
+                              <RefreshCw className="h-3 w-3 text-slate-500 dark:text-slate-400" />
+                              Re-download media
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleDeleteRecord(rec._id || rec.id);
+                                setActiveMenuId(null);
+                              }}
+                              className="flex items-center gap-1.5 px-2 py-1.5 rounded text-[11px] font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-955/20 transition-colors w-full text-left cursor-pointer border-t border-slate-100 dark:border-slate-800/80 mt-0.5 pt-1.5">
+                              <Trash2 className="h-3 w-3" />
+                              Delete from history
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* URL */}
+                  <a
+                    href={rec.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[10px] text-indigo-500 hover:text-indigo-650 dark:text-indigo-400 dark:hover:text-indigo-300 truncate block font-medium hover:underline pr-2">
+                    {rec.url}
+                  </a>
+
+                  {/* Footer Row */}
+                  <div className="flex justify-between items-center text-[10px] font-medium pt-1 border-t border-slate-100 dark:border-slate-900/60 mt-0.5">
+                    <span className="text-slate-550 dark:text-slate-500">
+                      {formatDate(rec.timestamp)}
+                    </span>
+                    <span
+                      className={`font-semibold ${rec.status === "completed" ? "text-emerald-600" : "text-rose-650"}`}>
+                      {rec.status === "completed" ? "Completed" : "Failed"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
         </div>
 
         {/* Pagination controls */}
@@ -293,38 +336,36 @@ export default function History() {
             <button
               onClick={() => setCurrentPage(currentPage - 1)}
               disabled={currentPage === 1}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-855 disabled:opacity-40 disabled:hover:text-slate-400 transition-colors"
-            >
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-855 disabled:opacity-40 disabled:hover:text-slate-400 transition-colors">
               Previous
             </button>
 
             <div className="flex items-center gap-1.5">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                <button
-                  key={page}
-                  onClick={() => setCurrentPage(page)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                    currentPage === page
-                      ? "bg-indigo-600 dark:bg-indigo-650 text-white font-bold"
-                      : "bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
-                  }`}
-                >
-                  {page}
-                </button>
-              ))}
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                (page) => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      currentPage === page
+                        ? "bg-indigo-600 dark:bg-indigo-650 text-white font-bold"
+                        : "bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                    }`}>
+                    {page}
+                  </button>
+                ),
+              )}
             </div>
 
             <button
               onClick={() => setCurrentPage(currentPage + 1)}
               disabled={currentPage === totalPages}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-855 disabled:opacity-40 disabled:hover:text-slate-450 transition-colors"
-            >
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-855 disabled:opacity-40 disabled:hover:text-slate-450 transition-colors">
               Next
             </button>
           </div>
         )}
       </div>
-
     </div>
   );
 }

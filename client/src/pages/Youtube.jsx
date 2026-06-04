@@ -5,20 +5,18 @@ import {
   Download,
   X,
   RefreshCw,
-  CheckCircle,
-  Eye,
-  Clock,
-  Video as VideoIcon,
-  Image as ImageIcon,
-  Plus,
   ChevronLeft,
   ChevronRight,
+  Video as VideoIcon,
+  Music as MusicIcon,
+  Image as ImageIcon,
 } from "lucide-react";
 import YoutubeIcon from "../components/YoutubeIcon";
 import {
   fetchYoutubeTrending,
   searchYoutubeVideos,
   triggerDownload,
+  fetchYoutubeVideoInfo,
 } from "../api/apies";
 
 export default function YoutubePage() {
@@ -39,10 +37,14 @@ export default function YoutubePage() {
 
   // Modal State
   const [selectedVideo, setSelectedVideo] = useState(null);
-  const [downloadFormat, setDownloadFormat] = useState("video");
-  const [downloadQuality, setDownloadQuality] = useState("1080p");
+
+  // Download Options Modal State
+  const [downloadingVideoInfo, setDownloadingVideoInfo] = useState(null);
+  const [modalFormat, setModalFormat] = useState("video");
+  const [modalQuality, setModalQuality] = useState("1080p");
+  const [videoSizes, setVideoSizes] = useState(null);
+  const [fetchingSizes, setFetchingSizes] = useState(false);
   const [isSubmittingDownload, setIsSubmittingDownload] = useState(false);
-  const [showDownloadOptions, setShowDownloadOptions] = useState(false);
 
   const scrollRef = useRef(null);
 
@@ -151,28 +153,41 @@ export default function YoutubePage() {
     }
   };
 
-  const handleVideoCardClick = (video, openDownloadDirectly = false) => {
+  const handleVideoCardClick = (video) => {
     setSelectedVideo(video);
-    setDownloadFormat("video");
-    setDownloadQuality("1080p");
-    setShowDownloadOptions(openDownloadDirectly);
   };
 
-  const handleStartDownload = async () => {
-    if (!selectedVideo) return;
+  const handleDownloadIconClick = async (video) => {
+    setDownloadingVideoInfo(video);
+    setModalFormat("video");
+    setModalQuality("1080p");
+    setVideoSizes(null);
+    setFetchingSizes(true);
+    try {
+      const data = await fetchYoutubeVideoInfo(video.url);
+      setVideoSizes(data.sizes);
+    } catch (err) {
+      console.error("Failed to fetch sizes:", err.message);
+    } finally {
+      setFetchingSizes(false);
+    }
+  };
+
+  const handleStartDownloadConfirm = async () => {
+    if (!downloadingVideoInfo) return;
 
     setIsSubmittingDownload(true);
     try {
       await triggerDownload(
-        selectedVideo.url,
+        downloadingVideoInfo.url,
         "",
-        downloadFormat === "video" ? downloadQuality : "Original",
-        downloadFormat,
+        modalFormat === "video" ? modalQuality : "Original",
+        modalFormat
       );
       triggerToast(
-        `Queued download: "${selectedVideo.title.slice(0, 30)}..." (${downloadFormat.toUpperCase()})`,
+        `Queued download: "${downloadingVideoInfo.title.slice(0, 30)}..." (${modalFormat.toUpperCase()})`
       );
-      setSelectedVideo(null); // Close modal player overlay
+      setDownloadingVideoInfo(null);
       handleRefresh(); // Sync active downloading queue immediately
       navigate("/download"); // Redirect user to active queue page
     } catch (err) {
@@ -312,9 +327,9 @@ export default function YoutubePage() {
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleVideoCardClick(vid, true);
+                      handleDownloadIconClick(vid);
                     }}
-                    className="flex h-11 w-11 items-center justify-center rounded-xl border border-indigo-200 dark:border-indigo-900/50 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-600 hover:text-white dark:hover:bg-indigo-500 dark:hover:text-white transition-all shadow-sm cursor-pointer animate-pulse"
+                    className="flex h-11 w-11 items-center justify-center rounded-[10px] bg-red-600 text-white transition-all shadow-sm cursor-pointer animate-pulse"
                     title="Configure Download"
                   >
                     <Download className="h-5 w-5" />
@@ -365,149 +380,196 @@ export default function YoutubePage() {
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                 allowFullScreen
                 className="absolute inset-0 w-full h-full"></iframe>
+            </div>            {/* Bottom Half: Video Details & Download Action */}
+            <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-900/50 backdrop-blur-md p-6">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 animate-fadeIn">
+                <div className="space-y-1.5 min-w-0">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/10 dark:bg-indigo-650/15 border border-indigo-500/20 dark:border-indigo-500/30 text-indigo-655 dark:text-indigo-400 uppercase tracking-wide">
+                    YouTube Stream
+                  </span>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white leading-snug line-clamp-2 pr-4">
+                    {selectedVideo.title}
+                  </h3>
+                  <p className="text-xs text-slate-550 dark:text-slate-400 font-medium">
+                    Channel: {selectedVideo.channel.name}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleDownloadIconClick(selectedVideo);
+                    setSelectedVideo(null);
+                  }}
+                  className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 text-white font-bold text-sm shadow-lg shadow-indigo-500/20 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer flex-shrink-0">
+                  <Download className="h-4 w-4" />
+                  Download Video
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Download Configuration Modal Overlay */}
+      {downloadingVideoInfo && (
+        <div 
+          onClick={() => setDownloadingVideoInfo(null)}
+          className="fixed inset-0 mt-20 z-[70] flex items-center justify-center p-4 bg-slate-900/60 dark:bg-slate-950/85 backdrop-blur-md animate-fadeIn"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="relative w-full max-w-md rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-scaleUp p-6 space-y-6"
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Download className="h-5 w-5 text-indigo-500" />
+                Download Options
+              </h3>
+              <button
+                type="button"
+                onClick={() => setDownloadingVideoInfo(null)}
+                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
             </div>
 
-            {/* Bottom Half: Conditional View */}
-            <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-900/50 backdrop-blur-md p-6">
-              {!showDownloadOptions ? (
-                /* WATCH VIEW: Video Title, Channel, and Download Button */
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 animate-fadeIn">
-                  <div className="space-y-1.5 min-w-0">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/10 dark:bg-indigo-650/15 border border-indigo-500/20 dark:border-indigo-500/30 text-indigo-650 dark:text-indigo-400 uppercase tracking-wide">
-                      YouTube Stream
-                    </span>
-                    <h3 className="text-base font-bold text-slate-900 dark:text-white leading-snug line-clamp-2 pr-4">
-                      {selectedVideo.title}
-                    </h3>
-                    <p className="text-xs text-slate-550 dark:text-slate-400 font-medium">
-                      Channel: {selectedVideo.channel.name}
-                    </p>
-                  </div>
+            {/* Video Details */}
+            <div className="flex gap-3 bg-slate-50 dark:bg-slate-955/45 p-3 rounded-xl border border-slate-150 dark:border-slate-855">
+              <img 
+                src={downloadingVideoInfo.thumbnail} 
+                alt={downloadingVideoInfo.title} 
+                className="w-24 h-16 object-cover rounded-lg border border-slate-200 dark:border-slate-800 flex-shrink-0"
+              />
+              <div className="min-w-0 flex-1 flex flex-col justify-between">
+                <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 line-clamp-2 leading-snug">
+                  {downloadingVideoInfo.title}
+                </h4>
+                <p className="text-[10px] text-slate-500 font-semibold truncate mt-1">
+                  Duration: {downloadingVideoInfo.duration}
+                </p>
+              </div>
+            </div>
 
-                  <button
-                    type="button"
-                    onClick={() => setShowDownloadOptions(true)}
-                    className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 text-white font-bold text-sm shadow-lg shadow-indigo-500/20 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer flex-shrink-0">
-                    <Download className="h-4 w-4" />
-                    Download Video
-                  </button>
-                </div>
-              ) : (
-                /* DOWNLOAD VIEW: Target Folder, Format Selector, Select Video Quality, Start Download */
-                <div className="space-y-5 animate-fadeIn">
-                  {/* Title and back button */}
-                  <div className="flex items-center justify-between gap-4 pb-3 border-b border-slate-200 dark:border-slate-800/80">
-                    <div className="min-w-0">
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/10 dark:bg-indigo-650/15 border border-indigo-500/20 dark:border-indigo-500/30 text-indigo-650 dark:text-indigo-400 uppercase tracking-wide">
-                        Download Configuration
-                      </span>
-                      <h4 className="text-xs text-slate-650 dark:text-slate-400 font-semibold truncate max-w-xs md:max-w-md block mt-1">
-                        {selectedVideo.title}
-                      </h4>
-                    </div>
+            {/* Format Selection */}
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide block">
+                Format
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { value: "video", label: "Video (MP4)", icon: VideoIcon },
+                  { value: "audio", label: "Audio (MP3)", icon: MusicIcon },
+                  { value: "image", label: "Image (JPG)", icon: ImageIcon },
+                ].map((fmt) => {
+                  const Icon = fmt.icon;
+                  return (
                     <button
+                      key={fmt.value}
                       type="button"
-                      onClick={() => setShowDownloadOptions(false)}
-                      className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/80 hover:bg-slate-100 dark:hover:bg-slate-900 text-[10px] font-bold text-slate-600 dark:text-slate-350 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer flex-shrink-0">
-                      ← Back to Player
+                      onClick={() => setModalFormat(fmt.value)}
+                      className={`py-2 px-1 rounded-xl border text-[10px] font-bold text-center flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                        modalFormat === fmt.value
+                          ? "bg-indigo-500/10 dark:bg-indigo-650/20 border-indigo-500 text-indigo-655 dark:text-indigo-300 shadow-inner"
+                          : "bg-white dark:bg-slate-955/40 border-slate-200 dark:border-slate-855 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:border-slate-300 dark:hover:border-slate-800"
+                      }`}
+                    >
+                      <Icon className="h-4 w-4" />
+                      <span>{fmt.label}</span>
                     </button>
-                  </div>
+                  );
+                })}
+              </div>
+            </div>
 
-
-
-                  {/* Format Selector */}
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide block">
-                      Format Selector
-                    </label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {[
-                        {
-                          value: "video",
-                          label: "Video (MP4)",
-                          icon: VideoIcon,
-                        },
-                        { value: "audio", label: "Audio (MP3)", icon: Clock },
-                        {
-                          value: "image",
-                          label: "Image (JPG)",
-                          icon: ImageIcon,
-                        },
-                      ].map((fmt) => {
-                        const Icon = fmt.icon;
-                        return (
-                          <button
-                            key={fmt.value}
-                            type="button"
-                            onClick={() => setDownloadFormat(fmt.value)}
-                            className={`py-2 px-1 rounded-xl border text-[10px] font-bold text-center flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
-                              downloadFormat === fmt.value
-                                ? "bg-indigo-500/10 dark:bg-indigo-650/20 border-indigo-500 text-indigo-650 dark:text-indigo-300 shadow-inner"
-                                : "bg-white dark:bg-slate-950/40 border-slate-200 dark:border-slate-855 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:border-slate-300 dark:hover:border-slate-800"
-                            }`}>
-                            <Icon className="h-3.5 w-3.5" />
-                            <span>{fmt.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Video Resolution Quality */}
-                  {downloadFormat === "video" && (
-                    <div className="space-y-2 animate-fadeIn">
-                      <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide block">
-                        Select Video Quality
-                      </label>
-                      <div className="grid grid-cols-2 gap-2">
-                        {[
-                          { label: "1080p (Full HD)", value: "1080p" },
-                          { label: "720p (HD)", value: "720p" },
-                          { label: "480p (SD)", value: "480p" },
-                          { label: "Original / Best", value: "Original" },
-                        ].map((res) => (
-                          <button
-                            key={res.value}
-                            type="button"
-                            onClick={() => setDownloadQuality(res.value)}
-                            className={`py-2 px-2.5 rounded-xl border text-xs font-semibold text-center transition-all cursor-pointer ${
-                              downloadQuality === res.value
-                                ? "bg-indigo-500/10 dark:bg-indigo-650/20 border-indigo-500 text-indigo-650 dark:text-indigo-300 shadow-inner"
-                                : "bg-white dark:bg-slate-950/40 border-slate-200 dark:border-slate-855 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:border-slate-300 dark:hover:border-slate-800"
-                            }`}>
-                            {res.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Submit Download button */}
-                  <div className="pt-4 border-t border-slate-200 dark:border-slate-800/80 mt-4">
-                    <button
-                      type="button"
-                      onClick={handleStartDownload}
-                      disabled={isSubmittingDownload}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 text-white font-bold text-sm shadow-lg shadow-indigo-500/20 hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-50 cursor-pointer">
-                      {isSubmittingDownload ? (
-                        <>
-                          <RefreshCw className="h-4 w-4 animate-spin" />
-                          Queuing Stream...
-                        </>
-                      ) : (
-                        <>
-                          <Download className="h-4 w-4" />
-                          Start Background Download
-                        </>
-                      )}
-                    </button>
-                    <p className="text-[9px] text-slate-500 dark:text-slate-500 mt-2 text-center leading-relaxed">
-                      * Stream will continue playing in the background during
-                      active file downloads on host server drive.
-                    </p>
-                  </div>
+            {/* Video Quality / Resolution Options (if Video) */}
+            {modalFormat === "video" && (
+              <div className="space-y-2 animate-fadeIn">
+                <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide block">
+                  Select Video Quality
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { label: "1080p (Full HD)", value: "1080p" },
+                    { label: "720p (HD)", value: "720p" },
+                    { label: "480p (SD)", value: "480p" },
+                    { label: "360p (LQ)", value: "360p" },
+                    { label: "Original / Best", value: "Original" },
+                  ].map((res) => {
+                    const sizeStr = videoSizes ? videoSizes[res.value] : null;
+                    return (
+                      <button
+                        key={res.value}
+                        type="button"
+                        onClick={() => setModalQuality(res.value)}
+                        className={`py-2 px-2.5 rounded-xl border text-left flex flex-col justify-center gap-0.5 transition-all cursor-pointer ${
+                          modalQuality === res.value
+                            ? "bg-indigo-500/10 dark:bg-indigo-650/20 border-indigo-500 text-indigo-655 dark:text-indigo-300 shadow-inner"
+                            : "bg-white dark:bg-slate-955/40 border-slate-200 dark:border-slate-855 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:border-slate-300 dark:hover:border-slate-800"
+                        }`}
+                      >
+                        <span className="text-xs font-semibold">{res.label}</span>
+                        {fetchingSizes ? (
+                          <span className="text-[9px] text-slate-400 dark:text-slate-500 animate-pulse">Calculating size...</span>
+                        ) : sizeStr ? (
+                          <span className="text-[9px] text-indigo-555 dark:text-indigo-400 font-bold">{sizeStr}</span>
+                        ) : (
+                          <span className="text-[9px] text-slate-400 dark:text-slate-500 font-medium">N/A size</span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
-              )}
+              </div>
+            )}
+
+            {/* Display size for Audio and Image formats */}
+            {modalFormat !== "video" && (
+              <div className="p-3 bg-slate-50 dark:bg-slate-955/30 rounded-xl border border-slate-150 dark:border-slate-850 flex items-center justify-between text-xs font-bold">
+                <span className="text-slate-500 dark:text-slate-400">Estimated File Size:</span>
+                {modalFormat === "audio" ? (
+                  fetchingSizes ? (
+                    <span className="text-slate-400 dark:text-slate-500 animate-pulse">Calculating size...</span>
+                  ) : videoSizes?.audio ? (
+                    <span className="text-indigo-600 dark:text-indigo-400 font-extrabold">{videoSizes.audio}</span>
+                  ) : (
+                    <span className="text-slate-400 dark:text-slate-500">N/A size</span>
+                  )
+                ) : (
+                  <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">~500 KB</span>
+                )}
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-3 border-t border-slate-250 dark:border-slate-800/80 pt-4 mt-2">
+              <button
+                type="button"
+                onClick={() => setDownloadingVideoInfo(null)}
+                className="flex-1 py-2.5 rounded-[10px] border border-slate-200 dark:border-slate-855 bg-white dark:bg-slate-950 text-slate-650 dark:text-slate-350 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-900 transition-colors text-xs font-bold cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleStartDownloadConfirm}
+                disabled={isSubmittingDownload}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-[10px] bg-red-600 hover:bg-red-700 text-white font-bold text-xs shadow-lg shadow-red-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer"
+              >
+                {isSubmittingDownload ? (
+                  <>
+                    <RefreshCw className="h-4.5 w-4.5 animate-spin" />
+                    Starting...
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-4.5 w-4.5" />
+                    Start Download
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>

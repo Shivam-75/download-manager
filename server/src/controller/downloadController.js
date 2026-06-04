@@ -4,6 +4,7 @@ import os from "os";
 import axios from "axios";
 import { execSync, exec, spawn } from "child_process";
 import ffmpegPath from "ffmpeg-static";
+import ytdl from "@distube/ytdl-core";
 import Download from "../models/Download.js";
 
 // In-memory queue to track active downloads in real-time
@@ -162,8 +163,156 @@ const runDownloadJob = async (job) => {
   let writer = null;
 
   if (isYoutube) {
+    const ytdlpPath = path.resolve("./bin/yt-dlp.exe");
+    if (!fs.existsSync(ytdlpPath)) {
+      // Pure JS fallback via @distube/ytdl-core (works on Vercel, Render, local, everywhere)
+      return new Promise((resolve) => {
+        try {
+          let options = {};
+          if (type === "audio") {
+            options = { filter: "audioonly", quality: "highestaudio" };
+          } else {
+            options = { filter: "audioandvideo", quality: "highest" };
+          }
+
+          const stream = ytdl(url, options);
+
+          stream.on("error", async (streamErr) => {
+            console.error("ytdl-core stream error:", streamErr.message);
+            activeDownloads = activeDownloads.filter((j) => j.id !== jobId);
+            try { writer.destroy(); } catch (e) {}
+            if (fs.existsSync(fullFilePath)) {
+              try { fs.unlinkSync(fullFilePath); } catch (e) {}
+            }
+            try {
+              await Download.create({
+                jobId,
+                name: job.name,
+                type,
+                format,
+                size: "0 B",
+                sizeBytes: 0,
+                status: "failed",
+                speed: "0 B/s",
+                url,
+                resolution,
+                path: fullFilePath,
+              });
+            } catch (dbErr) {
+              console.error("Failed to log failure in DB:", dbErr.message);
+            }
+            resolve();
+          });
+
+          const writer = fs.createWriteStream(fullFilePath);
+
+          job.cancel = () => {
+            try {
+              writer.destroy();
+              stream.destroy();
+            } catch (e) {}
+          };
+
+          let startTime = Date.now();
+
+          stream.on("progress", (chunkLength, downloaded, total) => {
+            const pct = total > 0 ? (downloaded / total) * 100 : 50;
+            job.progress = Math.min(99, Math.round(pct));
+            
+            const now = Date.now();
+            const elapsedSec = (now - startTime) / 1000;
+            const bytesPerSec = downloaded / Math.max(1, elapsedSec);
+            
+            job.speed = `${formatBytes(bytesPerSec)}/s`;
+            job.size = formatBytes(total);
+            job.sizeBytes = total;
+            
+            const remainingBytes = total - downloaded;
+            const etaSec = bytesPerSec > 0 ? Math.ceil(remainingBytes / bytesPerSec) : 0;
+            job.eta = `${etaSec}s`;
+          });
+
+          stream.pipe(writer);
+
+          writer.on("finish", async () => {
+            activeDownloads = activeDownloads.filter((j) => j.id !== jobId);
+            const finalSize = formatBytes(fs.statSync(fullFilePath).size);
+            
+            try {
+              await Download.create({
+                jobId,
+                name: job.name,
+                type,
+                format,
+                size: finalSize,
+                sizeBytes: fs.statSync(fullFilePath).size,
+                status: "completed",
+                speed: job.speed,
+                url,
+                resolution: type === "audio" ? "N/A" : resolution,
+                duration: job.duration || "0:30",
+                thumbnail,
+                path: fullFilePath,
+              });
+            } catch (dbErr) {
+              console.error("Failed to log completion in DB:", dbErr.message);
+            }
+            resolve();
+          });
+
+          writer.on("error", async (err) => {
+            if (job.status === "paused") {
+              resolve();
+              return;
+            }
+            activeDownloads = activeDownloads.filter((j) => j.id !== jobId);
+            writer.close();
+            if (fs.existsSync(fullFilePath)) {
+              try { fs.unlinkSync(fullFilePath); } catch (e) {}
+            }
+            try {
+              await Download.create({
+                jobId,
+                name: job.name,
+                type,
+                format,
+                size: "0 B",
+                sizeBytes: 0,
+                status: "failed",
+                speed: "0 B/s",
+                url,
+                resolution,
+                path: fullFilePath,
+              });
+            } catch (dbErr) {
+              console.error("Failed to log failure in DB:", dbErr.message);
+            }
+            resolve();
+          });
+        } catch (err) {
+          activeDownloads = activeDownloads.filter((j) => j.id !== jobId);
+          if (fs.existsSync(fullFilePath)) {
+            try { fs.unlinkSync(fullFilePath); } catch (e) {}
+          }
+          Download.create({
+            jobId,
+            name: job.name,
+            type: type || "video",
+            format: format || "MP4",
+            size: "0 B",
+            sizeBytes: 0,
+            status: "failed",
+            speed: "0 B/s",
+            url,
+            resolution,
+            path: fullFilePath,
+          }).catch(() => {});
+          resolve();
+        }
+      });
+    }
+
     try {
-      const ytdlpPath = path.resolve("./bin/yt-dlp.exe");
       const args = [];
 
       if (type === "audio") {
@@ -924,8 +1073,13 @@ export const streamMediaDirect = async (req, res) => {
         res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(cleanTitle)}.mp3"`);
         res.setHeader("Content-Type", "audio/mpeg");
         
-        // ytdl audioonly stream
-        ytdl(url, { filter: "audioonly", quality: "highestaudio" }).pipe(res);
+        // ytdl audioonly stream with error handling to avoid crashes
+        const audioStream = ytdl(url, { filter: "audioonly", quality: "highestaudio" });
+        audioStream.on("error", (err) => {
+          console.error("Direct audio stream error:", err.message);
+          if (!res.headersSent) res.redirect(url);
+        });
+        audioStream.pipe(res);
       } else {
         res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(cleanTitle)}.mp4"`);
         res.setHeader("Content-Type", "video/mp4");
@@ -961,8 +1115,13 @@ export const streamMediaDirect = async (req, res) => {
           });
           streamResponse.data.pipe(res);
         } else {
-          // Fallback to default ytdl stream
-          ytdl(url, { quality: "highest" }).pipe(res);
+          // Fallback to default ytdl stream with error handling to avoid crashes
+          const fallbackStream = ytdl(url, { quality: "highest" });
+          fallbackStream.on("error", (err) => {
+            console.error("Direct fallback video stream error:", err.message);
+            if (!res.headersSent) res.redirect(url);
+          });
+          fallbackStream.pipe(res);
         }
       }
     } else {
@@ -1005,5 +1164,29 @@ export const streamMediaDirect = async (req, res) => {
         res.status(500).json({ message: "Failed to stream media", error: error.message });
       }
     }
+  }
+};
+
+// GET download a completed file from server disk
+export const downloadCompletedFile = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const record = await Download.findById(id);
+    if (!record) {
+      return res.status(404).json({ message: "Download log not found" });
+    }
+
+    const filePath = path.resolve(record.path);
+    if (!fs.existsSync(filePath)) {
+      // Fallback: redirect to stream endpoint if local file is missing (e.g., on Vercel ephemeral disk)
+      const apiBaseUrl = process.env.VERCEL || process.env.NOW_REGION ? "" : "/api";
+      const streamUrl = `${apiBaseUrl}/downloads/stream?url=${encodeURIComponent(record.url)}&mediaType=${record.type}&resolution=${record.resolution || "Original"}`;
+      return res.redirect(streamUrl);
+    }
+
+    res.download(filePath, path.basename(filePath));
+  } catch (error) {
+    console.error("Download completed file error:", error.message);
+    res.status(500).json({ message: "Failed to download file", error: error.message });
   }
 };

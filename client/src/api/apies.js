@@ -1,19 +1,19 @@
 import axios from "axios";
 
 const API = axios.create({
-    baseURL: import.meta.env.VITE_API_BASE_URL || "https://download-manager-gm8u.vercel.app/api",
+  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api",
 
 });
 
 // Fetch all logs (includes database completed logs and in-memory active downloads)
 export const fetchDownloads = async () => {
-    try {
-        const response = await API.get("/downloads");
-        return response.data;
-    } catch (error) {
-        console.error("Error fetching downloads:", error);
-        throw error;
-    }
+  try {
+    const response = await API.get("/downloads");
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching downloads:", error);
+    throw error;
+  }
 };
 
 // Start a new background download stream to disk
@@ -29,46 +29,46 @@ export const triggerDownload = async (url, downloadPath, resolution, mediaType) 
 
 // Delete a download log (and deletes file from local server disk)
 export const removeDownload = async (id) => {
-    try {
-        const response = await API.delete(`/downloads/${id}`);
-        return response.data;
-    } catch (error) {
-        console.error("Error deleting download:", error);
-        throw error;
-    }
+  try {
+    const response = await API.delete(`/downloads/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error deleting download:", error);
+    throw error;
+  }
 };
 
 // Wipe entire download database history
 export const clearAllDownloads = async () => {
-    try {
-        const response = await API.delete("/downloads");
-        return response.data;
-    } catch (error) {
-        console.error("Error clearing downloads:", error);
-        throw error;
-    }
+  try {
+    const response = await API.delete("/downloads");
+    return response.data;
+  } catch (error) {
+    console.error("Error clearing downloads:", error);
+    throw error;
+  }
 };
 
 // Fetch list of active system disks/drives
 export const fetchDisks = async () => {
-    try {
-        const response = await API.get("/downloads/disks");
-        return response.data;
-    } catch (error) {
-        console.error("Error fetching disks:", error);
-        throw error;
-    }
+  try {
+    const response = await API.get("/downloads/disks");
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching disks:", error);
+    throw error;
+  }
 };
 
 // Fetch subfolders within a specific directory path
 export const fetchFolders = async (path) => {
-    try {
-        const response = await API.get("/downloads/folders", { params: { path } });
-        return response.data;
-    } catch (error) {
-        console.error(`Error fetching folders for path ${path}:`, error);
-        throw error;
-    }
+  try {
+    const response = await API.get("/downloads/folders", { params: { path } });
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching folders for path ${path}:`, error);
+    throw error;
+  }
 };
 
 // Fetch physical storage usage metrics for a path
@@ -133,6 +133,17 @@ export const resumeDownload = async (id) => {
     return response.data;
   } catch (error) {
     console.error("Error resuming download:", error);
+    throw error;
+  }
+};
+
+// Fetch metadata, formats, and estimated sizes for a YouTube video
+export const fetchYoutubeVideoInfo = async (url) => {
+  try {
+    const response = await API.get("/youtube/info", { params: { url } });
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching info for video ${url}:`, error);
     throw error;
   }
 };

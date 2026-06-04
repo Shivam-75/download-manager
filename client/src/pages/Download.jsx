@@ -23,13 +23,8 @@ import {
 } from "../api/apies";
 
 export default function DownloadPage() {
-  const {
-    records,
-    handleRefresh,
-    isRefreshing,
-    triggerToast,
-    isLoading,
-  } = useOutletContext();
+  const { records, handleRefresh, isRefreshing, triggerToast, isLoading } =
+    useOutletContext();
 
   const [inputUrl, setInputUrl] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -42,7 +37,10 @@ export default function DownloadPage() {
 
   // Active downloads are logs from server currently marked as 'downloading', 'queued', or 'paused'
   const activeDownloads = records.filter(
-    (r) => r.status === "downloading" || r.status === "queued" || r.status === "paused",
+    (r) =>
+      r.status === "downloading" ||
+      r.status === "queued" ||
+      r.status === "paused",
   );
 
   const [downloadTarget, setDownloadTarget] = useState("device");
@@ -61,19 +59,29 @@ export default function DownloadPage() {
     }
   };
 
+  const handleStartDownload = (e) => {
+    if (e) e.preventDefault();
+    handleDownloadClick("server");
+  };
+
   const startDownloadJob = async (resQuality, target) => {
     setIsSubmitting(true);
     try {
       if (target === "device") {
-        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "https://download-manager-gm8u.vercel.app/api";
+        const apiBaseUrl =
+          import.meta.env.VITE_API_BASE_URL || "https://download-manager-gm8u.vercel.app/api";
         const downloadUrl = `${apiBaseUrl}/downloads/stream?url=${encodeURIComponent(inputUrl)}&mediaType=${mediaType}&resolution=${resQuality}`;
-        window.open(downloadUrl, "_blank");
+        if (window.Capacitor) {
+          window.open(downloadUrl, "_system");
+        } else {
+          window.open(downloadUrl, "_blank");
+        }
         triggerToast("Direct download stream started on your device.");
         setInputUrl("");
       } else {
         await triggerDownload(inputUrl, "", resQuality, mediaType);
         triggerToast(
-          `Download queued successfully on server: ${mediaType.toUpperCase()} format`
+          `Download queued successfully on server: ${mediaType.toUpperCase()} format`,
         );
         setInputUrl("");
         handleRefresh();
@@ -169,10 +177,9 @@ export default function DownloadPage() {
                     onClick={() => setMediaType(type.value)}
                     className={`w-full py-2 rounded-xl border text-xs font-semibold text-center transition-all cursor-pointer ${
                       mediaType === type.value
-                        ? "bg-indigo-500/10 dark:bg-indigo-650/20 border-indigo-500 text-indigo-650 dark:text-indigo-300 shadow-inner"
+                        ? "bg-indigo-500/10 dark:bg-indigo-650/20 border-indigo-500 text-indigo-655 dark:text-indigo-300 shadow-inner"
                         : "bg-white dark:bg-slate-950/40 border-slate-200 dark:border-slate-855 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:border-slate-350 dark:hover:border-slate-800"
-                    }`}
-                  >
+                    }`}>
                     {type.label}
                   </button>
                 ))}
@@ -187,30 +194,20 @@ export default function DownloadPage() {
                     mediaType === "video"
                       ? "Paste video URL (e.g. YouTube, mp4 link)"
                       : mediaType === "audio"
-                      ? "Paste audio URL (e.g. YouTube, mp3 link)"
-                      : "Paste image URL (e.g. Unsplash, jpg link)"
+                        ? "Paste audio URL (e.g. YouTube, mp3 link)"
+                        : "Paste image URL (e.g. Unsplash, jpg link)"
                   }
                   className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-855 rounded-xl py-2.5 px-4 text-sm text-slate-805 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-600 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20 transition-all"
                 />
               </div>
-              <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex flex-col gap-3">
                 <button
-                  type="button"
-                  onClick={() => handleDownloadClick("device")}
+                  type="submit"
                   disabled={isSubmitting}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-650 text-white font-bold text-sm shadow-lg shadow-emerald-500/20 hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-50 cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-650 text-white font-bold text-sm shadow-lg shadow-emerald-500/20 hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-50 cursor-pointer"
                 >
                   <Download className="h-4 w-4" />
-                  Download to Device
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDownloadClick("server")}
-                  disabled={isSubmitting}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 text-white font-bold text-sm shadow-lg shadow-indigo-500/20 hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-50 cursor-pointer"
-                >
-                  <Plus className="h-4 w-4" />
-                  Save on Server Disk
+                  Start Download
                 </button>
               </div>
             </form>
@@ -237,7 +234,9 @@ export default function DownloadPage() {
               {isLoading ? (
                 <div className="flex flex-col items-center justify-center py-12 text-slate-500 text-center gap-2">
                   <RefreshCw className="h-8 w-8 animate-spin text-indigo-400" />
-                  <p className="font-semibold text-slate-600 dark:text-slate-350">Syncing queue status...</p>
+                  <p className="font-semibold text-slate-600 dark:text-slate-350">
+                    Syncing queue status...
+                  </p>
                 </div>
               ) : activeDownloads.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-slate-500 text-center gap-2">
@@ -252,32 +251,31 @@ export default function DownloadPage() {
                   </div>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-5">
+                <div className="grid grid-cols-1 gap-4">
                   {activeDownloads.map((dl) => (
                     <div
                       key={dl.id}
-                      className="flex flex-col rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 overflow-hidden shadow-sm hover:shadow-md transition-all duration-300">
-                      {/* Thumbnail Container */}
-                      <div className="relative aspect-video w-full bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-900">
+                      className="flex flex-col rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-955 shadow-sm hover:shadow-md transition-all duration-300 relative w-full max-w-[480px] mx-auto"
+                    >
+                      {/* Top: Thumbnail Container */}
+                      <div className="relative aspect-video w-full rounded-t-xl overflow-hidden bg-slate-100 dark:bg-slate-900 flex-shrink-0">
                         <img
                           src={dl.thumbnail}
                           alt={dl.name}
                           className="h-full w-full object-cover"
                         />
                         {/* Top-Right Status Badge */}
-                        <span className={`absolute top-3 right-3 px-2 py-0.5 rounded-lg text-[9px] font-extrabold text-white tracking-wider uppercase ${
-                          dl.status === "downloading" ? "bg-red-600" : dl.status === "paused" ? "bg-slate-750/90" : "bg-indigo-600/90"
-                        }`}>
-                          {dl.status === "downloading" ? "Downloading" : dl.status === "paused" ? "Paused" : "Queued"}
+                        <span className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm px-1.5 py-0.5 rounded text-[8px] font-bold text-white tracking-wide uppercase">
+                          {dl.status}
                         </span>
                         {/* Bottom-Left Size Badge */}
-                        <span className="absolute bottom-3 left-3 px-1.5 py-0.5 rounded bg-slate-950/80 backdrop-blur-sm text-[10px] font-bold text-white">
+                        <span className="absolute bottom-2 left-2 bg-black px-1.5 py-0.5 rounded text-[9px] font-extrabold text-white tracking-wide">
                           {dl.size || "0 B"}
                         </span>
-                        {/* Bottom Progress Bar */}
-                        <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-slate-250 dark:bg-slate-900">
+                        {/* Red Progress Bar at the very bottom of thumbnail */}
+                        <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/20">
                           {dl.status === "queued" ? (
-                            <div className="h-full w-full bg-indigo-500/25 animate-pulse" />
+                            <div className="h-full w-full bg-red-500/30 animate-pulse" />
                           ) : (
                             <div
                               className="h-full bg-red-650 transition-all duration-300"
@@ -287,61 +285,53 @@ export default function DownloadPage() {
                         </div>
                       </div>
 
-                      {/* Content Area */}
-                      <div className="p-4 flex flex-col gap-3">
-                        {/* Title and Action Menu */}
-                        <div className="flex justify-between items-start gap-2">
-                          <div className="min-w-0 flex-1 space-y-1">
-                            <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 line-clamp-2 pr-1" title={dl.name}>
+                      {/* Bottom: Info and Progress */}
+                      <div className="p-3 space-y-1.5 flex flex-col justify-between flex-1">
+                        {/* Title & Action Menu */}
+                        <div className="flex justify-between items-start gap-1.5">
+                          <div className="min-w-0 flex-1">
+                            <h3 className="text-xs font-bold text-slate-855 dark:text-slate-255 leading-snug line-clamp-2 pr-1" title={dl.name}>
                               {dl.name}
                             </h3>
-                            <a
-                              href={dl.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs text-indigo-500 hover:text-indigo-650 dark:text-indigo-400 dark:hover:text-indigo-300 truncate block font-medium hover:underline pr-2"
-                            >
-                              {dl.url}
-                            </a>
                           </div>
 
                           {/* Action Dropdown Menu */}
-                          <div className="relative">
+                          <div className="relative flex-shrink-0">
                             <button
                               type="button"
                               onClick={() => setActiveMenuId(activeMenuId === dl.id ? null : dl.id)}
-                              className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors cursor-pointer"
+                              className="p-0.5 rounded hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors cursor-pointer"
                             >
-                              <MoreVertical className="h-4.5 w-4.5" />
+                              <MoreVertical className="h-4 w-4" />
                             </button>
 
                             {activeMenuId === dl.id && (
                               <>
-                                <div 
-                                  className="fixed inset-0 z-20 cursor-default" 
+                                <div
+                                  className="fixed inset-0 z-20 cursor-default"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setActiveMenuId(null);
                                   }}
                                 />
-                                <div className="absolute right-0 top-full mt-1.5 z-30 w-48 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl p-1.5 flex flex-col gap-0.5 animate-fadeIn">
+                                <div className="absolute right-0 top-full mt-1 z-30 w-44 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl p-1 flex flex-col gap-0.5 animate-fadeIn">
                                   {dl.status === "paused" ? (
                                     <button
                                       type="button"
                                       onClick={() => handleResume(dl.id)}
-                                      className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors w-full text-left cursor-pointer"
+                                      className="flex items-center gap-1.5 px-2 py-1.5 rounded text-[11px] font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors w-full text-left cursor-pointer"
                                     >
-                                      <Play className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
+                                      <Play className="h-3 w-3 text-slate-500 dark:text-slate-400" />
                                       Resume download
                                     </button>
                                   ) : (
                                     <button
                                       type="button"
                                       onClick={() => handlePause(dl.id)}
-                                      className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors w-full text-left ${dl.status === "queued" ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                                      className={`flex items-center gap-1.5 px-2 py-1.5 rounded text-[11px] font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors w-full text-left ${dl.status === "queued" ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
                                       disabled={dl.status === "queued"}
                                     >
-                                      <Pause className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
+                                      <Pause className="h-3 w-3 text-slate-500 dark:text-slate-400" />
                                       Pause download
                                     </button>
                                   )}
@@ -351,9 +341,9 @@ export default function DownloadPage() {
                                       handleCancelDownload(dl.id);
                                       setActiveMenuId(null);
                                     }}
-                                    className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors w-full text-left cursor-pointer border-t border-slate-100 dark:border-slate-800/80 mt-0.5 pt-2"
+                                    className="flex items-center gap-1.5 px-2 py-1.5 rounded text-[11px] font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-955/20 transition-colors w-full text-left cursor-pointer border-t border-slate-100 dark:border-slate-800/80 mt-0.5 pt-1.5"
                                   >
-                                    <Trash2 className="h-3.5 w-3.5" />
+                                    <Trash2 className="h-3 w-3" />
                                     Delete from downloads
                                   </button>
                                 </div>
@@ -362,11 +352,29 @@ export default function DownloadPage() {
                           </div>
                         </div>
 
-                        {/* Bottom Row: Date & Progress Info */}
-                        <div className="flex justify-between items-center text-xs text-slate-500 mt-1 pt-2.5 border-t border-slate-250 dark:border-slate-900/60">
-                          <span>{new Date(dl.timestamp || Date.now()).toLocaleDateString()}</span>
-                          <span className="font-semibold text-rose-500 dark:text-rose-455">
-                            {dl.progress}% {dl.speed && dl.speed !== "0 B/s" && `• ${dl.speed}`}
+                        {/* URL */}
+                        <a
+                          href={dl.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[10px] text-indigo-500 hover:text-indigo-650 dark:text-indigo-400 dark:hover:text-indigo-300 truncate block font-medium hover:underline pr-2"
+                        >
+                          {dl.url}
+                        </a>
+
+                        {/* Footer row: Date on left, Progress stats in red on right */}
+                        <div className="flex justify-between items-center text-[10px] font-medium pt-1 border-t border-slate-100 dark:border-slate-900/60 mt-0.5">
+                          <span className="text-slate-550 dark:text-slate-500">
+                            {dl.timestamp ? new Date(dl.timestamp).toLocaleDateString() : new Date().toLocaleDateString()}
+                          </span>
+                          <span className="text-red-500 font-semibold">
+                            {dl.status === "paused" ? (
+                              "Paused"
+                            ) : dl.status === "queued" ? (
+                              "Queued"
+                            ) : (
+                              `${dl.progress}%${dl.speed && dl.speed !== "0 B/s" ? ` • ${dl.speed}` : ""}`
+                            )}
                           </span>
                         </div>
                       </div>
