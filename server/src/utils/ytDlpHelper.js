@@ -118,6 +118,10 @@ export const writeCookiesFromEnv = () => {
       content = content.substring(1, content.length - 1).trim();
     }
 
+    // Replace escaped newlines and tabs that cloud providers often generate
+    content = content.replace(/\\n/g, "\n").replace(/\\t/g, "\t");
+
+
 
     // Check if it's base64 encoded
     if (!content.includes("\t") && /^[a-zA-Z0-9+/={}\s\n]+$/.test(content)) {
