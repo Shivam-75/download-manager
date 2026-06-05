@@ -102,3 +102,36 @@ export const initYtDlp = () => {
     download(downloadUrl);
   });
 };
+
+/**
+ * Automatically creates/writes a cookies.txt file if the YOUTUBE_COOKIES environment variable is set.
+ * Supports both raw Netscape format strings and base64-encoded Netscape strings.
+ */
+export const writeCookiesFromEnv = () => {
+  const cookiesEnv = process.env.YOUTUBE_COOKIES;
+  if (!cookiesEnv) return;
+
+  try {
+    const cookiesPath = path.resolve("./cookies.txt");
+    let content = cookiesEnv.trim();
+
+    // Check if it's base64 encoded
+    if (!content.includes("\t") && /^[a-zA-Z0-9+/={}\s\n]+$/.test(content)) {
+      try {
+        const decoded = Buffer.from(content, "base64").toString("utf-8");
+        if (decoded.includes("youtube.com") || decoded.includes(".youtube.com") || decoded.includes("# Netscape")) {
+          content = decoded;
+          console.log("[Cookies] Detected base64-encoded YOUTUBE_COOKIES. Decoded successfully.");
+        }
+      } catch (e) {
+        // Fallback to original content if decoding fails
+      }
+    }
+
+    fs.writeFileSync(cookiesPath, content, "utf-8");
+    console.log("[Cookies] Successfully wrote cookies.txt from YOUTUBE_COOKIES environment variable.");
+  } catch (err) {
+    console.error("[Cookies] Failed to write cookies.txt from environment variable:", err.message);
+  }
+};
+

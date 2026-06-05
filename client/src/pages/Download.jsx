@@ -20,6 +20,7 @@ import {
   removeDownload,
   pauseDownload,
   resumeDownload,
+  getApiBaseUrl,
 } from "../api/apies";
 
 export default function DownloadPage() {
@@ -68,8 +69,7 @@ export default function DownloadPage() {
     setIsSubmitting(true);
     try {
       if (target === "device") {
-        const apiBaseUrl =
-          import.meta.env.VITE_API_BASE_URL || "https://download-manager-gm8u.vercel.app/api";
+        const apiBaseUrl = getApiBaseUrl();
         const downloadUrl = `${apiBaseUrl}/downloads/stream?url=${encodeURIComponent(inputUrl)}&mediaType=${mediaType}&resolution=${resQuality}`;
         if (window.Capacitor) {
           window.open(downloadUrl, "_system");

@@ -22,6 +22,7 @@ import {
   removeDownload,
   triggerDownload,
   openFileInExplorer,
+  getApiBaseUrl,
 } from "../api/apies";
 
 export default function History() {
@@ -46,9 +47,7 @@ export default function History() {
   }, [isMobile]);
 
   const handleViewFile = async (rec) => {
-    const apiBaseUrl =
-      import.meta.env.VITE_API_BASE_URL ||
-      "https://download-manager-gm8u.vercel.app/api";
+    const apiBaseUrl = getApiBaseUrl();
     const isVercel = window.location.hostname.includes("vercel.app");
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 

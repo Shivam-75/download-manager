@@ -9,9 +9,10 @@ import cluster from "cluster";
 import os from "os";
 import downloadRoutes from "./src/routes/downloadRoutes.js";
 import youtubeRoutes from "./src/routes/youtubeRoutes.js";
-import { initYtDlp } from "./src/utils/ytDlpHelper.js";
+import { initYtDlp, writeCookiesFromEnv } from "./src/utils/ytDlpHelper.js";
 
 config();
+writeCookiesFromEnv();
 
 const PORT = process.env.PORT || 5000;
 

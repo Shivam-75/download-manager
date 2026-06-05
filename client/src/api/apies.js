@@ -1,9 +1,24 @@
 import axios from "axios";
 
-const API = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api",
+export const getApiBaseUrl = () => {
+  const customUrl = localStorage.getItem("custom_server_url");
+  if (customUrl) {
+    return customUrl;
+  }
+  return import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+};
 
+const API = axios.create({
+  baseURL: getApiBaseUrl(),
 });
+
+API.interceptors.request.use((config) => {
+  config.baseURL = getApiBaseUrl();
+  return config;
+}, (error) => {
+  return Promise.reject(error);
+});
+
 
 // Fetch all logs (includes database completed logs and in-memory active downloads)
 export const fetchDownloads = async () => {
