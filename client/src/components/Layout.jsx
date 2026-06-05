@@ -134,8 +134,12 @@ export default function Layout() {
       setRecords(data);
 
       if (downloadPath) {
-        const stats = await fetchStorageStats(downloadPath);
-        setStorageStats(stats);
+        try {
+          const stats = await fetchStorageStats(downloadPath);
+          setStorageStats(stats);
+        } catch (storageErr) {
+          console.error("Failed to load storage stats during refresh:", storageErr.message);
+        }
       }
 
       setTimeout(() => {

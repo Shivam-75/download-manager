@@ -114,6 +114,10 @@ export const writeCookiesFromEnv = () => {
   try {
     const cookiesPath = path.resolve("./cookies.txt");
     let content = cookiesEnv.trim();
+    if (content.startsWith('"') && content.endsWith('"')) {
+      content = content.substring(1, content.length - 1).trim();
+    }
+
 
     // Check if it's base64 encoded
     if (!content.includes("\t") && /^[a-zA-Z0-9+/={}\s\n]+$/.test(content)) {

@@ -131,7 +131,17 @@ export const getVideoInfo = async (req, res) => {
   exec(command, { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
     if (err) {
       console.error("Error fetching video info via yt-dlp:", err.message);
-      return res.status(500).json({ message: "Failed to fetch video info", error: err.message });
+      const cookiesExist = fs.existsSync(cookiesPath);
+      const cookiesSize = cookiesExist ? fs.statSync(cookiesPath).size : 0;
+      return res.status(500).json({ 
+        message: "Failed to fetch video info", 
+        error: err.message,
+        diagnostics: {
+          cookiesExist,
+          cookiesSize,
+          cookiesPath
+        }
+      });
     }
     try {
       const info = JSON.parse(stdout);
