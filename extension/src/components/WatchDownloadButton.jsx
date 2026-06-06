@@ -8,9 +8,7 @@ export default function WatchDownloadButton() {
     if (status === "loading") return;
     setStatus("loading");
     try {
-      const apiBaseUrl =
-        import.meta.env.VITE_API_BASE_URL ||
-        "https://download-manager-odz0.onrender.com/api";
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
       const response = await fetch(`${apiBaseUrl}/downloads`, {
         method: "POST",
         headers: {

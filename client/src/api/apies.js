@@ -1,11 +1,7 @@
 import axios from "axios";
 
 export const getApiBaseUrl = () => {
-  const customUrl = localStorage.getItem("custom_server_url");
-  if (customUrl) {
-    return customUrl;
-  }
-  return import.meta.env.VITE_API_BASE_URL || "https://download-manager-odz0.onrender.com/api";
+  return import.meta.env.VITE_API_BASE_URL;
 };
 
 const API = axios.create({

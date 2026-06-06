@@ -51,9 +51,7 @@ export default function StreamixModal() {
 
     const pollJobStatus = async () => {
       try {
-        const apiBaseUrl =
-          import.meta.env.VITE_API_BASE_URL ||
-          "https://download-manager-odz0.onrender.com/api";
+        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
         const res = await fetch(`${apiBaseUrl}/downloads`);
         if (!res.ok) return;
         const downloads = await res.json();
@@ -120,9 +118,7 @@ export default function StreamixModal() {
     e.stopPropagation();
     if (!activeJobId) return;
     try {
-      const apiBaseUrl =
-        import.meta.env.VITE_API_BASE_URL ||
-        "https://download-manager-odz0.onrender.com/api";
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
       const res = await fetch(`${apiBaseUrl}/downloads/${activeJobId}/pause`, {
         method: "POST",
       });
@@ -140,9 +136,7 @@ export default function StreamixModal() {
     e.stopPropagation();
     if (!activeJobId) return;
     try {
-      const apiBaseUrl =
-        import.meta.env.VITE_API_BASE_URL ||
-        "https://download-manager-odz0.onrender.com/api";
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
       const res = await fetch(`${apiBaseUrl}/downloads/${activeJobId}/resume`, {
         method: "POST",
       });
@@ -160,9 +154,7 @@ export default function StreamixModal() {
     e.stopPropagation();
     if (!activeJobId) return;
     try {
-      const apiBaseUrl =
-        import.meta.env.VITE_API_BASE_URL ||
-        "https://download-manager-odz0.onrender.com/api";
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
       const res = await fetch(`${apiBaseUrl}/downloads/${activeJobId}`, {
         method: "DELETE",
       });
@@ -180,9 +172,7 @@ export default function StreamixModal() {
     setIsSubmitting(true);
     setErrorMsg("");
     try {
-      const apiBaseUrl =
-        import.meta.env.VITE_API_BASE_URL ||
-        "https://download-manager-odz0.onrender.com/api";
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
       const response = await fetch(`${apiBaseUrl}/downloads`, {
         method: "POST",
         headers: {
